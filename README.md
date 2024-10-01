@@ -85,7 +85,7 @@ Copy code: ./setup.sh
 Contributing
 If you would like to contribute, please fork the repository and create a pull request.
 
-License
+
 
 
 
