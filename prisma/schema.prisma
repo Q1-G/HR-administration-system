@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Necessary for NextAuth
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? // @db.Text
+  access_token             String? // @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? // @db.Text
+  session_state            String?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refresh_token_expires_in Int?
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  // Removed employeeId for clarity
+}
+
+model Employee {
+  id              Int        @id @default(autoincrement())
+  firstName       String
+  lastName        String
+  telephone       String
+  email           String     @unique
+  username        String     @unique
+  managerId       Int? // Foreign key to manager
+  employeeManager Employee?  @relation("EmployeeManager", fields: [managerId], references: [id]) 
+  employees       Employee[] @relation("EmployeeManager") // Opposite relation for managed employees
+  status          String
+
+  
+  departments        Department[] @relation("EmployeeDepartments") 
+  managedDepartments Department[] @relation("DepartmentManager") 
+}
+
+model Department {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  status    String?
+  employees Employee[] @relation("EmployeeDepartments")
+  manager   Employee?  @relation("DepartmentManager", fields: [managerId], references: [id])
+  managerId Int? // Optional manager ID field
+}
