@@ -1,4 +1,8 @@
-README: How to Run the T3 Stack Application Locally
+README: 
+This application was developed as a project HR administration system that captures the personal information of employees and their departments, in order for management to have an easy way of keeping track of the employees within the organisation.
+
+
+How to Run the T3 Stack Application Locally
 Prerequisites
 Before you begin, ensure you have met the following requirements:
 
@@ -16,101 +20,24 @@ npm install -g prisma
 
 Steps to Run the App Locally
 
-Clone the Repository
-Open your terminal.
-Navigate to the directory where you want to clone the project.
-Run the following command to clone the repository:
-bash
-Copy code
-git clone https://github.com/your-username/your-repository.git
-Replace your-username and your-repository with your GitHub username and the name of the repository.
-Navigate to the Project Directory
+1) Download repository project file from GitHub
+2) Unzip the project folder found in "downlowds"
+3) Extract the project folder and move it to a directory of your choice
+4) Open the project folder in the VS code or any text editor of your choice
+5) Create a ".env" file in the root folder.
+6) Ensure that you put the following information into your ".env" file
+  DATABASE_URL=file:./db.sqlite
+  NEXTAUTH_URL=http://localhost:3000
+  DISCORD_CLIENT_ID=your_discord_client_id
+  DISCORD_CLIENT_SECRET=your_discord_client_secret
+  NEXTAUTH_SECRET=your-nextauth_client_secret_here
+7) install dependencies by opening your command propmpt, "cd" into you project folder directory and run "npm install"
+8) In the same command prompt terminal run "npx prisma migrate dev" (***Very important, nothing will populate on the homepage if you do not do this***)
+9) In the same command prompt terminal run "npm run dev" This command will start the application, and you should see output indicating the server is running.
+10) To access the application open your web browser and go to http://localhost:3000. You should see your application running.
 
-bash
-Copy code
-cd your-repository
-Install Dependencies
+11) Optional: Run Prisma Studiot to manage your database visually, you can run Prisma Studio by running "npx prisma studio" in the command promt.
 
-Once inside the project directory, install the required dependencies by running:
-bash
-Copy code
-npm install
-Set Up the Database
-
-Create a .env file in the root directory if it doesn't already exist.
-Add your database URL in the .env file. It should look like this:
-env
-Copy code
-DATABASE_URL="file:./db.sqlite"
-Run the following command to apply the migrations and set up the database:
-bash
-Copy code
-npx prisma migrate dev
-This command will create the necessary database tables and seed your database if you've set up any seed files.
-Run the Development Server
-
-## Environment Variables
-
-Before running the application, you need to set up the following environment variables. Create a `.env` file in the root of your project with the following variables:
-
-(Steps to Create a .env File
-Open Your Terminal or Command Prompt:
-
-Navigate to your project directory where your code resides.
-Create the .env File:
-
-You can create the file using a text editor or directly from the command line.
-Using a Text Editor:
-
-Open your favorite text editor (like VS Code, Notepad++, Sublime Text, etc.).
-Create a new file and save it as .env in the root of your project directory. Make sure to include the dot (.) at the beginning of the filename.
-Using the Command Line:
-
-In your terminal, you can use the following command:
-bash
-Copy code
-touch .env
-If you're using Windows and the touch command is not recognized, you can use:
-bash
-Copy code
-echo. > .env
-Alternatively, you can create the file using a command like this (in PowerShell):
-powershell
-Copy code
-New-Item -Path .env -ItemType File
-Edit the .env File:
-
-Open the .env file you just created in your text editor.
-Add your environment variables in the format KEY=VALUE. For example:
-plaintext
-Copy code
-DATABASE_URL=file:./db.sqlite
-NEXTAUTH_URL=http://localhost:3000
-DISCORD_CLIENT_ID=your_discord_client_id
-DISCORD_CLIENT_SECRET=your_discord_client_secret
-NEXTAUTH_SECRET=your-nextauth_client_secret_here
-Save the File:
-
-After adding the necessary variables, save the .env file.).
-
-```plaintext
-
-After the database is set up, you can start the development server by running:
-bash
-Copy code
-npm run dev
-This command will start the application, and you should see output indicating the server is running.
-Access the Application
-
-Open your web browser and go to http://localhost:3000.
-You should see your application running.
-Optional: Run Prisma Studio
-
-To manage your database visually, you can run Prisma Studio by executing:
-bash
-Copy code
-npx prisma studio
-This will open a new tab in your browser where you can view and manage your database records.
 Troubleshooting
 If you encounter issues, ensure that you have followed all the steps correctly, especially setting up the .env file and installing dependencies.
 Make sure that all the required packages are installed, and your Node.js version is compatible with the project.
