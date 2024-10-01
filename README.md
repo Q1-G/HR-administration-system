@@ -31,7 +31,7 @@ Steps to Run the App Locally
   DISCORD_CLIENT_ID=your_discord_client_id
   DISCORD_CLIENT_SECRET=your_discord_client_secret
   NEXTAUTH_SECRET=your_nextauth_secret_here
-7) install dependencies by opening your command propmpt, "cd" into you project folder directory and run "npm install"
+7) Install dependencies by opening your command propmpt, "cd" into you project folder directory and run "npm install"
 8) In the same command prompt terminal run "npx prisma migrate dev" (***Very important, nothing will populate on the homepage if you do not do this***)
 9) In the same command prompt terminal run "npm run dev" This command will start the application, and you should see output indicating the server is running.
 10) To access the application open your web browser and go to "http://localhost:3000". You should see your application running.
