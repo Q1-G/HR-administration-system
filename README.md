@@ -21,7 +21,7 @@ npm install -g prisma
 Steps to Run the App Locally
 
 1) Download repository project file from GitHub
-2) Unzip the project folder found in "downlowds"
+2) Unzip the project folder found in "downloads"
 3) Extract the project folder and move it to a directory of your choice
 4) Open the project folder in the VS code or any text editor of your choice
 5) Create a ".env" file in the root folder.
@@ -30,13 +30,13 @@ Steps to Run the App Locally
   NEXTAUTH_URL=http://localhost:3000
   DISCORD_CLIENT_ID=your_discord_client_id
   DISCORD_CLIENT_SECRET=your_discord_client_secret
-  NEXTAUTH_SECRET=your-nextauth_client_secret_here
+  NEXTAUTH_SECRET=your_nextauth_secret_here
 7) install dependencies by opening your command propmpt, "cd" into you project folder directory and run "npm install"
 8) In the same command prompt terminal run "npx prisma migrate dev" (***Very important, nothing will populate on the homepage if you do not do this***)
 9) In the same command prompt terminal run "npm run dev" This command will start the application, and you should see output indicating the server is running.
-10) To access the application open your web browser and go to http://localhost:3000. You should see your application running.
+10) To access the application open your web browser and go to "http://localhost:3000". You should see your application running.
 
-11) Optional: Run Prisma Studiot to manage your database visually, you can run Prisma Studio by running "npx prisma studio" in the command promt.
+11) Optional: Run Prisma Studio to manage your database visually, you can run Prisma Studio by running "npx prisma studio" in the command promt.
 
 Troubleshooting
 If you encounter issues, ensure that you have followed all the steps correctly, especially setting up the .env file and installing dependencies.
