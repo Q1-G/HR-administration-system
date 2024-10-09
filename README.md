@@ -32,11 +32,14 @@ Steps to Run the App Locally
   DISCORD_CLIENT_SECRET=your_discord_client_secret
   NEXTAUTH_SECRET=your_nextauth_secret_here
 7) Install dependencies by opening your command propmpt, "cd" into you project folder directory and run "npm install"
-8) In the same command prompt terminal run "npx prisma migrate dev" (***Very important, nothing will populate on the homepage if you do not do this***)
-9) In the same command prompt terminal run "npm run dev" This command will start the application, and you should see output indicating the server is running.
-10) To access the application open your web browser and go to "http://localhost:3000". You should see your application running.
+8) In the same command prompt terminal, run "npm install bcryptjs"
+9) In the same command prompt terminal, run "npx prisma db seed" (You will get a small error, this is okay, please proceed to step number 10)
+10) In the same command prompt terminal, run "npx prisma migrate dev" (***Very important, nothing will populate on the homepage if you do not do this***)
+11) In the same command propmt terminal, run "npx prisma db seed" (This time it should work and seed the superuser into the db)
+12) In the same command prompt terminal, run "npm run dev" This command will start the application, and you should see output indicating the application is running.
+13) To access the application, open your web browser and go to "http://localhost:3000". You should see your application running.
 
-11) Optional: Run Prisma Studio to manage your database visually, you can run Prisma Studio by running "npx prisma studio" in the command promt.
+14) Optional: Run Prisma Studio to manage your database visually, you can run Prisma Studio by running "npx prisma studio" in the command promt.
 
 Troubleshooting
 If you encounter issues, ensure that you have followed all the steps correctly, especially setting up the .env file and installing dependencies.
