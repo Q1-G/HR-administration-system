@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
+import bcrypt from 'bcryptjs'; // Import bcryptjs for password hashing
 
 
 
@@ -32,10 +33,23 @@ export const employeeRouter = createTRPCRouter({
         email: z.string().email(),
         username: z.string().min(1),
         status: z.string(),
-        managerId: z.number().optional(),
+        isManager: z.enum(['Yes', 'No']).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
+      
+      const hashedPassword = await bcrypt.hash('Password123#', 10);
+      
+      
+      const user = await ctx.db.user.create({
+        data: {
+          email: input.email,
+          hashedPassword: hashedPassword,
+          role: input.isManager === 'Yes' ? 'manager' : 'employee',
+        },
+      });
+
+    
       return ctx.db.employee.create({
         data: {
           firstName: input.firstName,
@@ -44,7 +58,8 @@ export const employeeRouter = createTRPCRouter({
           email: input.email,
           username: input.username,
           status: input.status,
-          managerId: input.managerId,
+          userId: user.id, 
+          managerId: input.isManager === 'Yes' ? 1 : undefined, 
         },
       });
     }),

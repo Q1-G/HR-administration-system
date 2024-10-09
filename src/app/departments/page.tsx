@@ -3,33 +3,70 @@
 import { api } from '../../trpc/react'; 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+const departmentSchema = z.object({
+  search: z.string().optional(),
+  statusFilter: z.enum(['All', 'Active', 'Inactive']).default('All'),
+});
+
+interface Department {
+  id: number;
+  name: string;
+  manager?: {
+    firstName: string;
+    lastName: string;
+  } | null;
+  status: string;
+}
 
 const DepartmentListView = () => {
   const { data: departments, isLoading, error } = api.department.getAll.useQuery();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const updateDepartmentMutation = api.department.update.useMutation();
+
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isFilterClicked, setIsFilterClicked] = useState(false);
+
+  const { register, handleSubmit, watch } = useForm({
+    resolver: zodResolver(departmentSchema),
+    defaultValues: {
+      search: '',
+      statusFilter: 'All',
+    },
+  });
+
+  const search = watch('search');
+  const statusFilter = watch('statusFilter');
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error loading departments: {error.message}</div>;
+  if (error instanceof Error) return <div>Error loading departments: {error.message}</div>;
 
-  // Filter departments based on the search input and status filter
-  const filteredDepartments = departments?.filter(department => {
+  const toggleDepartmentStatus = async (department: Department) => {
+    const newStatus = department.status === 'Active' ? 'Inactive' : 'Active';
+
+    try {
+      await updateDepartmentMutation.mutateAsync({
+        id: department.id,
+        status: newStatus,
+      });
+
+      
+      window.location.reload();  
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  const filteredDepartments = departments?.filter((department: Department) => {
     const matchesSearch = department.name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'All' || department.status === statusFilter;
-
     return matchesSearch && matchesStatus;
   });
 
   const totalPages = Math.ceil(filteredDepartments?.length / rowsPerPage);
   const paginatedDepartments = filteredDepartments?.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-
-  const handleFilter = () => {
-    setIsFilterClicked(true);
-    setTimeout(() => setIsFilterClicked(false), 2000);
-  };
 
   return (
     <div className="min-h-screen bg-white p-8 xl:px-64 lg:px-48">
@@ -38,30 +75,22 @@ const DepartmentListView = () => {
       </div>
 
       {/* Filters Container */}
-      <div className="bg-white border border-blue-600 p-4 rounded shadow-lg mb-4">
+      <form onSubmit={handleSubmit(() => {})} className="bg-white border border-blue-600 p-4 rounded shadow-lg mb-4">
         <h2 className="text-xl font-bold mb-2 text-black">Filters</h2>
         <div className="flex items-center">
           <label className="text-black font-bold w-32">Status</label>
           <select
             className="bg-white border border-blue-600 text-black p-2 rounded w-full"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            {...register('statusFilter')}
           >
             <option value="All">All</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
         </div>
-        {/* Filter Button */}
-        <button
-          className={`mt-4 px-4 py-2 font-bold text-white rounded ${isFilterClicked ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-600 hover:bg-blue-700'}`}
-          onClick={handleFilter}
-        >
-          Filter
-        </button>
-      </div>
+      </form>
 
-      {/* Search and Show per page */}
+      {/* Search bar and Show per page dropdown */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center space-x-4">
           <label className="text-black">Show per page:</label>
@@ -82,8 +111,7 @@ const DepartmentListView = () => {
           type="text"
           placeholder="Search departments..."
           className="bg-white border border-blue-600 text-black p-2 rounded"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          {...register('search')}
         />
       </div>
 
@@ -98,18 +126,22 @@ const DepartmentListView = () => {
           </tr>
         </thead>
         <tbody>
-          {paginatedDepartments?.map((department) => (
+          {paginatedDepartments?.map((department: Department) => (
             <tr key={department.id} className="border-t border-gray-300">
               <td className="p-4">
-                <Link href={`/departments/edit/${department.id}`}>
+                <Link href={`/departments/edit?departmentId=${department.id}`}>
                   <button className="bg-blue-600 text-white p-2 rounded mr-2">Edit</button>
                 </Link>
-                <Link href={`/departments/view/${department.id}`}>
-                  <button className="bg-green-500 text-white p-2 rounded">View Employees</button>
-                </Link>
+                {/* Toggle Activate/Deactivate Button */}
+                <button
+                  className={`p-2 rounded ${department.status === 'Active' ? 'bg-red-500' : 'bg-green-500'} text-white`}
+                  onClick={() => toggleDepartmentStatus(department)}
+                >
+                  {department.status === 'Active' ? 'Deactivate' : 'Activate'}
+                </button>
               </td>
               <td className="p-4">{department.name}</td>
-              <td className="p-4">{department.manager ? department.manager.firstName + ' ' + department.manager.lastName : "None"}</td>
+              <td className="p-4">{department.manager ? `${department.manager.firstName} ${department.manager.lastName}` : "None"}</td>
               <td className="p-4">{department.status}</td>
             </tr>
           ))}
@@ -138,3 +170,7 @@ const DepartmentListView = () => {
 };
 
 export default DepartmentListView;
+
+
+
+

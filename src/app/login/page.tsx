@@ -2,11 +2,11 @@
 
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 
 const LoginPage = () => {
-  const router = useRouter(); 
-  const [errorMessage, setErrorMessage] = useState(''); 
+  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -19,15 +19,18 @@ const LoginPage = () => {
       return;
     }
 
-    // Check for hardcoded credentials
-    if (username === "hradmin@test.com" && password === "TestPass1234") {
-      // Successful login
-      alert('Login successful!');
-      // Redirect to the home page
-      router.push('/home'); // Update to your home page route
-    } else {
-      // Failed login
+    // Use NextAuth to sign in with credentials
+    const result = await signIn("credentials", {
+      redirect: false,
+      username,
+      password,
+    });
+
+    if (result?.error) {
       setErrorMessage('Invalid username or password.');
+    } else {
+      // Successful login, redirect to the home page
+      router.push('/home'); // Update to your home page route
     }
   };
 
@@ -67,3 +70,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+

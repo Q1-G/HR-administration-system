@@ -1,89 +1,92 @@
 "use client";
 
-import { api } from 'src/trpc/react'; 
+import { useRouter, useSearchParams } from 'next/navigation'; 
+import { useEffect, useState } from 'react';
+import { api } from 'src/trpc/react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
-import bcrypt from 'bcryptjs'; 
-
 
 const employeeSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  telephone: z.string().regex(/^[0-9]+$/, 'Telephone number must contain only numbers'),
-  email: z.string().email('Invalid email format'),
-  isManager: z.enum(['Yes', 'No']).optional(),
+  telephone: z.string().min(10, 'Telephone must be at least 10 digits'),
+  email: z.string().email('Invalid email address'),
+  isManager: z.enum(['Yes', 'No']), 
+  status: z.enum(['Active', 'Inactive']),
 });
 
-type EmployeeFormValues = z.infer<typeof employeeSchema>;
+type EmployeeFormData = z.infer<typeof employeeSchema>;
 
-const CreateEmployee = () => {
-  const createEmployeeMutation = api.employee.create.useMutation();
+const EditEmployee = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const employeeId = Number(searchParams.get('employeeId'));
+
+  const { data: employeeData, isLoading, error } = api.employee.getById.useQuery(employeeId);
+  
   const [showSuccess, setShowSuccess] = useState(false); 
   const [showCancelDialog, setShowCancelDialog] = useState(false); 
   const [showSaveDialog, setShowSaveDialog] = useState(false); 
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<EmployeeFormValues>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
   });
 
-  const onSubmit = async (data: EmployeeFormValues) => {
-    setShowSaveDialog(false); 
-
-    try {
-      
-      const hashedPassword = await bcrypt.hash('Password123#', 10);
-
-      await createEmployeeMutation.mutateAsync({
-        ...data,
-        status: 'Active', 
-        username: data.email, 
-        managerId: data.isManager === 'Yes' ? 1 : undefined, 
-        departments: [],
-        user: {
-          create: {
-            email: data.email,
-            hashedPassword, 
-            role: data.isManager === 'Yes' ? 'manager' : 'employee',
-          },
-        },
+  useEffect(() => {
+    if (employeeData) {
+      reset({
+        firstName: employeeData.firstName,
+        lastName: employeeData.lastName,
+        telephone: employeeData.telephone,
+        email: employeeData.email,
+        isManager: employeeData.managerId ? 'Yes' : 'No', 
+        status: employeeData.status,
       });
+    }
+  }, [employeeData, reset]);
 
-      reset(); 
-      setShowSuccess(true); 
-
-      
+  const updateEmployeeMutation = api.employee.update.useMutation({
+    onSuccess: () => {
+      setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
+        window.location.reload(); 
       }, 4000);
-    } catch (error) {
-      console.error('Error creating employee:', error);
-      alert('Failed to create employee. Please try again.');
-    }
-  };
+    },
+    onError: (error: any) => {
+      console.error('Error updating employee:', error);
+    },
+  });
 
-  const handleCancel = () => {
-    setShowCancelDialog(true); 
-  };
-
-  const handleConfirmCancel = () => {
-    reset(); // Reset the form
-    window.location.href = '/home'; 
+  const onSubmit = (data: EmployeeFormData) => {
+    setShowSaveDialog(false);
+    updateEmployeeMutation.mutate({
+      id: employeeId,
+      ...data,
+      managerId: data.isManager === 'Yes' ? employeeId : null, 
+    });
   };
 
   const handleConfirmSave = () => {
-    setShowSaveDialog(true); 
+    setShowSaveDialog(true);
   };
+
+  const handleCancel = () => {
+    setShowCancelDialog(true);
+  };
+
+  const handleConfirmCancel = () => {
+    reset();
+    router.push('/home');
+  };
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error loading employee: {error.message}</div>;
 
   return (
     <div className="min-h-screen bg-white p-8 xl:px-64 lg:px-48">
-      <h1 className="text-4xl font-bold text-blue-600 mb-8">Create New Employee</h1>
+      <h1 className="text-4xl font-bold text-blue-600 mb-8">Edit Employee</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white border border-blue-600 p-8 rounded shadow-lg space-y-6">
         {/* First Name */}
@@ -110,7 +113,7 @@ const CreateEmployee = () => {
 
         {/* Telephone */}
         <div className="flex flex-col space-y-2">
-          <label className="text-black font-bold">Telephone Number</label>
+          <label className="text-black font-bold">Telephone</label>
           <input
             type="text"
             className={`bg-white border border-blue-600 text-black p-2 rounded ${errors.telephone ? 'border-red-500' : ''}`}
@@ -121,7 +124,7 @@ const CreateEmployee = () => {
 
         {/* Email */}
         <div className="flex flex-col space-y-2">
-          <label className="text-black font-bold">Email Address</label>
+          <label className="text-black font-bold">Email</label>
           <input
             type="email"
             className={`bg-white border border-blue-600 text-black p-2 rounded ${errors.email ? 'border-red-500' : ''}`}
@@ -130,7 +133,7 @@ const CreateEmployee = () => {
           {errors.email && <p className="text-red-500">{errors.email.message}</p>}
         </div>
 
-        {/* Manager */}
+        {/* Manager Dropdown */}
         <div className="flex flex-col space-y-2">
           <label className="text-black font-bold">Manager</label>
           <select
@@ -140,9 +143,23 @@ const CreateEmployee = () => {
             <option value="No">No</option>
             <option value="Yes">Yes</option>
           </select>
+          {errors.isManager && <p className="text-red-500">{errors.isManager.message}</p>}
         </div>
 
-        {/* Save and Cancel Buttons */}
+        {/* Status */}
+        <div className="flex flex-col space-y-2">
+          <label className="text-black font-bold">Status</label>
+          <select
+            className="bg-white border border-blue-600 text-black p-2 rounded"
+            {...register('status')}
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+          {errors.status && <p className="text-red-500">{errors.status.message}</p>}
+        </div>
+
+        {/* Buttons: Save and Cancel */}
         <div className="flex justify-end space-x-4">
           <button
             type="button"
@@ -188,7 +205,7 @@ const CreateEmployee = () => {
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
           <div className="bg-white p-6 rounded shadow-lg">
-            <p className="text-black mb-4">Are you sure you want to create this employee?</p>
+            <p className="text-black mb-4">Confirm you agree with the changes made to this employee's information?</p>
             <div className="flex justify-end space-x-4">
               <button
                 className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
@@ -210,14 +227,14 @@ const CreateEmployee = () => {
       {/* Success Notification */}
       {showSuccess && (
         <div className="fixed top-4 right-4 bg-green-500 text-white p-4 rounded shadow-lg">
-          Employee created successfully!
+          Employee edited successfully!
         </div>
       )}
     </div>
   );
 };
 
-export default CreateEmployee;
+export default EditEmployee;
 
 
 

@@ -1,18 +1,19 @@
 "use client";
 
+import { useRouter, useSearchParams } from 'next/navigation'; 
+import { useEffect, useState } from 'react';
 import { api } from 'src/trpc/react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
-
 
 const departmentSchema = z.object({
-  name: z.string().min(1, "Department name is required"),
-  managerId: z.number().nullable(),
+  name: z.string().min(1, 'Department name is required'),
+  managerId: z.string().optional(),
+  status: z.enum(['Active', 'Inactive']),
 });
 
-type FormData = z.infer<typeof departmentSchema>;
+type DepartmentFormData = z.infer<typeof departmentSchema>;
 
 interface Employee {
   id: number;
@@ -20,42 +21,56 @@ interface Employee {
   lastName: string;
 }
 
-const CreateDepartment = () => {
-  const createDepartmentMutation = api.department.create.useMutation();
+const EditDepartment = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const departmentId = Number(searchParams.get('departmentId')); 
+
+  const { data: departmentData, isLoading, error } = api.department.getById.useQuery(departmentId);
+  const { data: employees } = api.employee.getAll.useQuery();
+
   const [showSuccess, setShowSuccess] = useState(false); 
   const [showCancelDialog, setShowCancelDialog] = useState(false); 
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false); 
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<DepartmentFormData>({
     resolver: zodResolver(departmentSchema),
-    defaultValues: {
-      name: '',
-      managerId: null,
+  });
+
+  useEffect(() => {
+    if (departmentData) {
+      reset({
+        name: departmentData.name,
+        managerId: departmentData.manager?.id.toString() ?? '',
+        status: departmentData.status,
+      });
+    }
+  }, [departmentData, reset]);
+
+  const updateDepartmentMutation = api.department.update.useMutation({
+    onSuccess: () => {
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        window.location.reload(); 
+      }, 4000);
+    },
+    onError: (error: any) => {
+      console.error('Error updating department:', error);
     },
   });
 
-  const { data: employees } = api.employee.getAll.useQuery<Employee[]>();
-
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = (data: DepartmentFormData) => {
     setShowSaveDialog(false); 
+    updateDepartmentMutation.mutate({
+      id: departmentId,
+      ...data,
+      managerId: data.managerId ? Number(data.managerId) : null, 
+    });
+  };
 
-    try {
-      await createDepartmentMutation.mutateAsync({
-        name: data.name,
-        managerId: data.managerId || undefined,
-      });
-
-      reset(); 
-      setShowSuccess(true); 
-
-      
-      setTimeout(() => {
-        setShowSuccess(false);
-      }, 4000);
-    } catch (error) {
-      console.error('Error creating department:', error);
-      alert('Failed to create department. Please try again.');
-    }
+  const handleConfirmSave = () => {
+    setShowSaveDialog(true); 
   };
 
   const handleCancel = () => {
@@ -63,18 +78,16 @@ const CreateDepartment = () => {
   };
 
   const handleConfirmCancel = () => {
-    reset(); 
-    
-    window.location.href = '/departments'; 
+    reset(); // Reset the form
+    router.push('/departments'); 
   };
 
-  const handleConfirmSave = () => {
-    setShowSaveDialog(true); 
-  };
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error loading department: {error.message}</div>;
 
   return (
     <div className="min-h-screen bg-white p-8 xl:px-64 lg:px-48">
-      <h1 className="text-4xl font-bold text-blue-600 mb-8">Create New Department</h1>
+      <h1 className="text-4xl font-bold text-blue-600 mb-8">Edit Department</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white border border-blue-600 p-8 rounded shadow-lg space-y-6">
         {/* Department Name */}
@@ -93,18 +106,32 @@ const CreateDepartment = () => {
           <label className="text-black font-bold">Manager</label>
           <select
             className="bg-white border border-blue-600 text-black p-2 rounded"
-            {...register('managerId', { valueAsNumber: true })}
+            {...register('managerId')}
           >
             <option value="">No Manager</option>
             {employees?.map((employee: Employee) => (
-              <option key={employee.id} value={employee.id}>
+              <option key={employee.id} value={employee.id.toString()}>
                 {employee.firstName} {employee.lastName}
               </option>
             ))}
           </select>
+          {errors.managerId && <p className="text-red-500">{errors.managerId.message}</p>}
         </div>
 
-        {/* Save and Cancel Buttons */}
+        {/* Status */}
+        <div className="flex flex-col space-y-2">
+          <label className="text-black font-bold">Status</label>
+          <select
+            className="bg-white border border-blue-600 text-black p-2 rounded"
+            {...register('status')}
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+          {errors.status && <p className="text-red-500">{errors.status.message}</p>}
+        </div>
+
+        {/* Buttons: Save and Cancel */}
         <div className="flex justify-end space-x-4">
           <button
             type="button"
@@ -150,7 +177,7 @@ const CreateDepartment = () => {
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
           <div className="bg-white p-6 rounded shadow-lg">
-            <p className="text-black mb-4">Are you sure you want to create this department?</p>
+            <p className="text-black mb-4">Confirm you agree with the changes made to this department's information?</p>
             <div className="flex justify-end space-x-4">
               <button
                 className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
@@ -172,13 +199,12 @@ const CreateDepartment = () => {
       {/* Success Notification */}
       {showSuccess && (
         <div className="fixed top-4 right-4 bg-green-500 text-white p-4 rounded shadow-lg">
-          Department created successfully!
+          Department edited successfully!
         </div>
       )}
     </div>
   );
 };
 
-export default CreateDepartment;
-
+export default EditDepartment;
 

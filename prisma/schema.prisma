@@ -17,12 +17,12 @@ model Account {
   type                     String
   provider                 String
   providerAccountId        String
-  refresh_token            String? // @db.Text
-  access_token             String? // @db.Text
+  refresh_token            String? 
+  access_token             String? 
   expires_at               Int?
   token_type               String?
   scope                    String?
-  id_token                 String? // @db.Text
+  id_token                 String? 
   session_state            String?
   user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   refresh_token_expires_in Int?
@@ -36,6 +36,7 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         String
 }
 
 model User {
@@ -44,10 +45,12 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  role          String    @default("EMPLOYEE")      
+  hashedPassword String?   
   accounts      Account[]
   sessions      Session[]
-
-  // Removed employeeId for clarity
+  employee      Employee?  @relation(fields: [employeeId], references: [id]) 
+  employeeId    Int?      @unique
 }
 
 model Employee {
@@ -57,14 +60,15 @@ model Employee {
   telephone       String
   email           String     @unique
   username        String     @unique
-  managerId       Int? // Foreign key to manager
+  managerId       Int? 
   employeeManager Employee?  @relation("EmployeeManager", fields: [managerId], references: [id]) 
-  employees       Employee[] @relation("EmployeeManager") // Opposite relation for managed employees
+  employees       Employee[] @relation("EmployeeManager") 
   status          String
 
-  
   departments        Department[] @relation("EmployeeDepartments") 
-  managedDepartments Department[] @relation("DepartmentManager") 
+  managedDepartments Department[] @relation("DepartmentManager")
+  user               User?        @relation 
+  userId             String?      @unique 
 }
 
 model Department {
@@ -73,5 +77,5 @@ model Department {
   status    String?
   employees Employee[] @relation("EmployeeDepartments")
   manager   Employee?  @relation("DepartmentManager", fields: [managerId], references: [id])
-  managerId Int? // Optional manager ID field
+  managerId Int? 
 }

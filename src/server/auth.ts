@@ -10,37 +10,40 @@ import DiscordProvider from "next-auth/providers/discord";
 import { env } from "../env";
 import { db } from "../server/db";
 
-// Module augmentation for `next-auth` types
+
 declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
-      // ...other properties
+      role: "admin" | "manager" | "employee";
+      
     } & DefaultSession["user"];
   }
 }
 
-// Options for NextAuth.js
+
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development', 
 
   callbacks: {
-    // Customize session callback
+    
     session: ({ session, user }) => ({
       ...session,
       user: {
         ...session.user,
         id: user.id,
+        role: user.role,
+      
       },
     }),
 
-    // Error handling for sign-in
+    
     signIn: async ({ user, account, profile }) => {
       if (user) {
-        return true; // Allow sign-in
+        return true; 
       } else {
         console.error("Sign-in failed: User object not found.");
-        return false; // Reject sign-in
+        return false; 
       }
     },
   },
@@ -52,9 +55,9 @@ export const authOptions: NextAuthOptions = {
       clientId: env.DISCORD_CLIENT_ID,
       clientSecret: env.DISCORD_CLIENT_SECRET,
     }),
-    // Add more providers if needed
+    
   ],
 };
 
-// Wrapper for `getServerSession`
+
 export const getServerAuthSession = () => getServerSession(authOptions);

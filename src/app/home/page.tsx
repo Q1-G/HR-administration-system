@@ -1,9 +1,21 @@
 "use client";
 
 import { api } from '../../trpc/react'; 
-import { useState } from 'react';
 import Link from 'next/link'; 
+import { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form'; 
+import { z } from 'zod'; 
+import { zodResolver } from '@hookform/resolvers/zod'; 
+import { useQueryClient } from '@tanstack/react-query'; 
 
+const filterSchema = z.object({
+  statusFilter: z.enum(['All', 'Active', 'Inactive']),
+  departmentFilter: z.string(),
+  managerFilter: z.string(),
+  search: z.string().optional(),
+});
+
+type FilterFormData = z.infer<typeof filterSchema>;
 
 interface Department {
   id: number;
@@ -30,32 +42,41 @@ interface Employee {
 const EmployeeListView = () => {
   const { data: employees, isLoading: loadingEmployees, error: errorEmployees } = api.employee.getAll.useQuery();
   const { data: departments, isLoading: loadingDepartments, error: errorDepartments } = api.department.getAll.useQuery();
-  const { data: managers, isLoading: loadingManagers, error: errorManagers } = api.employee.getManagers.useQuery(); 
+  const { data: managers, isLoading: loadingManagers, error: errorManagers } = api.employee.getManagers.useQuery();
 
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [departmentFilter, setDepartmentFilter] = useState('All');
-  const [managerFilter, setManagerFilter] = useState('All');
+  const updateEmployeeMutation = api.employee.update.useMutation();
+  const queryClient = useQueryClient(); // Initialize query client
+
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [isFilterClicked, setIsFilterClicked] = useState(false);
 
-  // Handle loading and error states
+  const { control, handleSubmit, watch } = useForm<FilterFormData>({
+    resolver: zodResolver(filterSchema),
+    defaultValues: {
+      statusFilter: 'All',
+      departmentFilter: 'All',
+      managerFilter: 'All',
+      search: '',
+    },
+  });
+
+  const { statusFilter, departmentFilter, managerFilter, search } = watch();
+
   if (loadingEmployees || loadingDepartments || loadingManagers) return <div>Loading...</div>;
   if (errorEmployees) return <div>Error loading employees: {errorEmployees.message}</div>;
   if (errorDepartments) return <div>Error loading departments: {errorDepartments.message}</div>;
   if (errorManagers) return <div>Error loading managers: {errorManagers.message}</div>;
 
-  // Filter employees based on search and selected filters
   const filteredEmployees: Employee[] = employees?.filter((employee: Employee) => {
-    const matchesSearch = employee.firstName.toLowerCase().includes(search.toLowerCase()) ||
-                          employee.lastName.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = employee.firstName.toLowerCase().includes(search?.toLowerCase() || '') ||
+                          employee.lastName.toLowerCase().includes(search?.toLowerCase() || '');
     const matchesStatus = statusFilter === 'All' || employee.status === statusFilter;
     const matchesDepartment = departmentFilter === 'All' || employee.departments.some(dept => dept.name === departmentFilter);
     const matchesManager = managerFilter === 'All' || employee.employeeManager?.id === parseInt(managerFilter);
 
     return matchesSearch && matchesStatus && matchesDepartment && matchesManager;
-  }) || []; // Default to an empty array if undefined
+  }) || [];
 
   const totalPages = Math.ceil(filteredEmployees.length / rowsPerPage);
   const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
@@ -65,9 +86,23 @@ const EmployeeListView = () => {
     setTimeout(() => setIsFilterClicked(false), 2000);
   };
 
-  const handleStatusChange = (employeeId: number, newStatus: string) => {
-    console.log(`Updating employee ${employeeId} to ${newStatus}`);
-    // Implement API call to update the status here
+  const handleStatusChange = async (employee: Employee) => {
+    const newStatus = employee.status === 'Active' ? 'Inactive' : 'Active';
+
+    try {
+      await updateEmployeeMutation.mutateAsync({
+        id: employee.id,
+        status: newStatus,
+      });
+
+      
+      window.location.reload();
+
+    
+      queryClient.invalidateQueries(api.employee.getAll.getQueryKey());
+    } catch (error) {
+      console.error('Error updating employee status:', error);
+    }
   };
 
   return (
@@ -76,66 +111,72 @@ const EmployeeListView = () => {
         <h1 className="text-4xl font-bold text-blue-600">Employees</h1>
       </div>
 
-      {/* Filters for status, department, and manager */}
-      <div className="bg-white border border-blue-600 p-4 rounded shadow-lg mb-4">
+      {/* Filters for status, department, and manager */} 
+      <form onSubmit={handleSubmit(handleFilter)} className="bg-white border border-blue-600 p-4 rounded shadow-lg mb-4">
         <h2 className="text-xl font-bold mb-2 text-black">Filters</h2>
         <div className="space-y-4">
           {/* Status Filter */}
           <div className="flex items-center">
             <label className="text-black font-bold w-32">Status</label>
-            <select
-              className="bg-white border border-blue-600 text-black p-2 rounded w-full"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="All">All</option>
-              <option value="Active">Active Only</option>
-              <option value="Inactive">Inactive Only</option>
-            </select>
+            <Controller
+              name="statusFilter"
+              control={control}
+              render={({ field }) => (
+                <select {...field} className="bg-white border border-blue-600 text-black p-2 rounded w-full">
+                  <option value="All">All</option>
+                  <option value="Active">Active Only</option>
+                  <option value="Inactive">Inactive Only</option>
+                </select>
+              )}
+            />
           </div>
 
           {/* Department Filter */}
           <div className="flex items-center">
             <label className="text-black font-bold w-32">Department</label>
-            <select
-              className="bg-white border border-blue-600 text-black p-2 rounded w-full"
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-            >
-              <option value="All">All</option>
-              {departments?.map((department: Department) => (
-                <option key={department.id} value={department.name}>{department.name}</option>
-              ))}
-            </select>
+            <Controller
+              name="departmentFilter"
+              control={control}
+              render={({ field }) => (
+                <select {...field} className="bg-white border border-blue-600 text-black p-2 rounded w-full">
+                  <option value="All">All</option>
+                  {departments?.map((department: Department) => (
+                    <option key={department.id} value={department.name}>{department.name}</option>
+                  ))}
+                </select>
+              )}
+            />
           </div>
 
           {/* Manager Filter */}
           <div className="flex items-center">
             <label className="text-black font-bold w-32">Manager</label>
-            <select
-              className="bg-white border border-blue-600 text-black p-2 rounded w-full"
-              value={managerFilter}
-              onChange={(e) => setManagerFilter(e.target.value)}
-            >
-              <option value="All">All</option>
-              {managers?.map((manager: Manager) => (
-                <option key={manager.id} value={manager.id}>
-                  {manager.firstName} {manager.lastName}
-                </option>
-              ))}
-            </select>
+            <Controller
+              name="managerFilter"
+              control={control}
+              render={({ field }) => (
+                <select {...field} className="bg-white border border-blue-600 text-black p-2 rounded w-full">
+                  <option value="All">All</option>
+                  {managers?.map((manager: Manager) => (
+                    <option key={manager.id} value={manager.id}>
+                      {manager.firstName} {manager.lastName}
+                    </option>
+                  ))}
+                </select>
+              )}
+            />
           </div>
         </div>
 
         <button
+          type="submit"
           className={`mt-4 px-4 py-2 font-bold text-white rounded ${isFilterClicked ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-600 hover:bg-blue-700'}`}
-          onClick={handleFilter}
         >
           Filter
         </button>
-      </div>
+      </form>
 
-      {/* Pagination and search bar */}
+      {/* Search bar and Show per page dropdown */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center space-x-4">
           <label className="text-black">Show per page:</label>
@@ -152,12 +193,17 @@ const EmployeeListView = () => {
           </select>
         </div>
 
-        <input
-          type="text"
-          placeholder="Search employees..."
-          className="bg-white border border-blue-600 text-black p-2 rounded"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+        <Controller
+          name="search"
+          control={control}
+          render={({ field }) => (
+            <input
+              {...field}
+              type="text"
+              placeholder="Search employees..."
+              className="bg-white border border-blue-600 text-black p-2 rounded"
+            />
+          )}
         />
       </div>
 
@@ -178,20 +224,20 @@ const EmployeeListView = () => {
           {paginatedEmployees.map((employee: Employee) => (
             <tr key={employee.id} className="border-t border-gray-300">
               <td className="p-4">
-                <Link href={`/employees/edit/${employee.id}`}>
+                <Link href={`/employees/edit?employeeId=${employee.id}`}>
                   <button className="bg-blue-600 text-white p-2 rounded mr-2">Edit</button>
                 </Link>
                 {employee.status === "Active" ? (
                   <button
                     className="bg-red-500 text-white p-2 rounded"
-                    onClick={() => handleStatusChange(employee.id, 'Inactive')}
+                    onClick={() => handleStatusChange(employee)}
                   >
                     Deactivate
                   </button>
                 ) : (
                   <button
                     className="bg-green-500 text-white p-2 rounded"
-                    onClick={() => handleStatusChange(employee.id, 'Active')}
+                    onClick={() => handleStatusChange(employee)}
                   >
                     Activate
                   </button>
@@ -230,3 +276,6 @@ const EmployeeListView = () => {
 };
 
 export default EmployeeListView;
+
+
+
